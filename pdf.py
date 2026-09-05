@@ -12,6 +12,7 @@ loader = PyPDFLoader("Build_Your_Own_LLM_Handbook.pdf") # load
 
 docs = loader.load()
 
+
 # print(len(docs))
 # print(type(docs))
 
