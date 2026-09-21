@@ -7,6 +7,8 @@ import model
 from sqlalchemy.orm import Session
 from uuid import uuid4
 from datetime import datetime
+from sqlalchemy import select
+from langchain_core.messages import HumanMessage, AIMessage
 
 app = FastAPI(
     title= "AshRAG", 
@@ -37,9 +39,11 @@ async def chat(
     db : Session = Depends(get_db)
     ):
     
+    current_conversation_id  = request.conversation_id
+    
     if request.conversation_id is None:
         con_id = str(uuid4())
-        request.conversation_id = con_id
+        current_conversation_id  = request.conversation_id = con_id
         
         title = "New Chat"
         
@@ -61,11 +65,49 @@ async def chat(
         )
         
         
+    message = model.Message(
+        id = str(uuid4()),
+        conversation_id = request.conversation_id,
+        role = "User",
+        content = request.message,
+        model = request.model,
+        created_at = datetime.now()
+    )
+    
+    stmt = (
+        select(Message)
+        .where(Message.conversation_id == current_conversation_id)
+        .order_by(Message.created_at.desc())
+        .limit(4)
+    )
+    
+    recent_messages = db.scalars(stmt).all()
+    
+    recent_messages.reverse()
+    
+    
+    db.add(message)
+    
+    db.commit()
+    
+    message_list = []
+    
+    for m in recent_messages:
+        if m.role == "User":
+            message_list.append(HumanMessage(m.content))
+            
+        if m.role == "Assistant":
+            message_list.append(AIMessage(m.content))
+            
+    message_list.append(HumanMessage(request.message))
+        
+        
     try:
+        
         llm = get_llm(request.model)
         
         response = await llm.ainvoke(
-            request.message
+            message_list
         )
 
         
