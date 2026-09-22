@@ -13,12 +13,13 @@ class ChatRequest(BaseModel):
 class ChatResponse(BaseModel):
     model : str
     message : str
+    current_con_id : str
     
 
 class Conversation(Base):
     __tablename__ = "conversation"
-    
-    
+
+
     id = Column(String, primary_key= True)
     title = Column(String)
     created_at = Column(DateTime)
@@ -49,3 +50,10 @@ class Message(Base):
         "Conversation",
         back_populates="message"
     )
+    
+    
+class ConversatioResponse(Base):
+    id = Column(String, primary_key=True)
+    title = Column(String)
+    created_at = Column(DateTime)
+    updated_at = Column(DateTime)

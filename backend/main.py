@@ -57,6 +57,18 @@ async def chat(
         db.add(conversation)
         
         db.commit() 
+        
+    prev_conversation = db.get(
+        Conversation,
+        current_conversation_id
+    )
+    
+    
+    if prev_conversation is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Conversation Not Found"
+        )
     
     if request.model not in AVAILABLE_MODELS:
         raise HTTPException(
@@ -109,11 +121,26 @@ async def chat(
         response = await llm.ainvoke(
             message_list
         )
+        
+        ai_message = Message(
+            id = str(uuid4()), 
+            conversation_id = current_conversation_id,
+            role = "Assistant", 
+            content = response.content,
+            model = request.model,
+            created_at = datetime.now()
+        )
+        
+        prev_conversation.updated_at = datetime.now()
 
+        db.add(ai_message)
+        
+        db.commit()
         
         return ChatResponse(
             model = AVAILABLE_MODELS[request.model],
-            message= response.content
+            message= response.content,
+            current_con_id= current_conversation_id
         )
     
     except Exception as e:
@@ -124,7 +151,7 @@ async def chat(
         )
         
         
-@app.post("/conversations")
+@app.post("/conversations", response_model= list[ConversatioResponse])
 async def create_conversations(
     db: Session = Depends(get_db)
 ):
