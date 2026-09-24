@@ -2,6 +2,7 @@ from pydantic import BaseModel
 from sqlalchemy import Column, ForeignKey, String, DateTime, Enum
 from database import Base
 from sqlalchemy.orm import relationship
+from datetime import datetime
 
 
 class ChatRequest(BaseModel):
@@ -52,8 +53,8 @@ class Message(Base):
     )
     
     
-class ConversatioResponse(Base):
-    id = Column(String, primary_key=True)
-    title = Column(String)
-    created_at = Column(DateTime)
-    updated_at = Column(DateTime)
+class ConversatioResponse(BaseModel):
+    id : str
+    title : str
+    created_at : datetime
+    updated_at : datetime

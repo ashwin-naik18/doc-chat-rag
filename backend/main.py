@@ -82,7 +82,7 @@ async def chat(
         conversation_id = request.conversation_id,
         role = "User",
         content = request.message,
-        model = request.model,
+        model = AVAILABLE_MODELS[request.model],
         created_at = datetime.now()
     )
     
@@ -127,7 +127,7 @@ async def chat(
             conversation_id = current_conversation_id,
             role = "Assistant", 
             content = response.content,
-            model = request.model,
+            model = AVAILABLE_MODELS[request.model],
             created_at = datetime.now()
         )
         
@@ -151,12 +151,15 @@ async def chat(
         )
         
         
-@app.post("/conversations", response_model= list[ConversatioResponse])
+@app.get("/conversations", response_model= list[ConversatioResponse])
 async def create_conversations(
     db: Session = Depends(get_db)
 ):
-    conversation = model.Conversation(
-        
+    query = (
+        select(Conversation)
+        .order_by(Conversation.updated_at.desc())
     )
     
+    conversations = db.scalars(query).all()
     
+    return conversations
