@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 from sqlalchemy import Column, ForeignKey, String, DateTime, Enum
 from database import Base
 from sqlalchemy.orm import relationship
@@ -22,6 +22,7 @@ class Conversation(Base):
 
 
     id = Column(String, primary_key= True)
+    user_id = Column(String, ForeignKey("users.id"))
     title = Column(String)
     created_at = Column(DateTime)
     updated_at = Column(DateTime)
@@ -30,6 +31,11 @@ class Conversation(Base):
         "Message",
         back_populates="conversation",
         cascade="all, delete-orphan"
+    )
+    
+    users = relationship(
+        "User",
+        back_populates="conversation"
     )
 
 
@@ -58,3 +64,63 @@ class ConversatioResponse(BaseModel):
     title : str
     created_at : datetime
     updated_at : datetime
+    
+    model_config = ConfigDict(from_attributes= True)
+
+
+class User(Base):
+    __tablename__ = "users"
+    id = Column(String, primary_key=True)
+    name = Column(String)
+    email = Column(String, unique=True)
+    hashed_password = Column(String)
+    created_at = Column(DateTime)
+    
+    conversations = relationship(
+        "Conversation",
+        back_populates="user"
+    )
+    
+
+class UserCreate(BaseModel):
+    email : str
+    name : str
+    password : str
+    confirm_password : str
+    
+
+class UserResponse(BaseModel):
+    id : str
+    name : str
+    email : str
+    created_at : datetime
+    
+    
+class LoginRequest(BaseModel):
+    email : str
+    password : str
+    
+
+class TokenResponse(BaseModel):
+    access_token : str
+    token_type : str
+    
+
+class MessageResponse(BaseModel):
+    id : str
+    role : str
+    content : str
+    model : str | None
+    created_at : datetime
+    
+    model_config = ConfigDict(from_attributes=True)
+    
+
+class ConversationDetailResponse(BaseModel):
+    id : str
+    title : str
+    created_at : datetime
+    updated_at : datetime
+    messges = list[MessageResponse]
+    
+    model_config = ConfigDict(from_attributes=True)

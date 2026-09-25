@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException, Depends
+from fastapi import FastAPI, HTTPException, Depends, invv
 from model_manager import get_llm
 from config import AVAILABLE_MODELS
 from model import *
@@ -9,6 +9,9 @@ from uuid import uuid4
 from datetime import datetime
 from sqlalchemy import select
 from langchain_core.messages import HumanMessage, AIMessage
+import security
+from jwt import InvalidTokenError
+
 
 app = FastAPI(
     title= "AshRAG", 
@@ -19,6 +22,51 @@ app = FastAPI(
 Base.metadata.create_all(bind = engine)
 
 
+def get_current_user(
+    token : str = Depends(security.oauth_scheme),
+    db : Session = Depends(get_db)
+) :
+    try:
+        payload = security.jwt.decode(
+            token,
+            security.SECRET_KEY,
+            algorithms=[security.ALGORITHM]
+        )
+
+        user_id = payload.get("sub")
+        
+        if user_id is None:
+            raise HTTPException(
+                status_code=401,
+                detail="Unauthorised"
+            )
+            
+        user = db.get(User, user_id)
+
+        if user is None:
+            raise HTTPException(
+                status_code=401,
+                detail="User not found"
+            )
+            
+        return user
+    
+    except HTTPException:
+        raise
+    
+    except InvalidTokenError:
+        raise HTTPException(
+            status_code=401,
+            detail="Unauthorised"
+        )
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail='Internal Server Error'
+        )
+    
+    
 @app.get("/root")
 async def root():
     return {
@@ -36,6 +84,7 @@ def get_models():
 @app.post("/chat", response_model = ChatResponse)
 async def chat(
     request : ChatRequest,
+    current_user : User = Depends(get_current_user),
     db : Session = Depends(get_db)
     ):
     
@@ -49,6 +98,7 @@ async def chat(
         
         conversation = Conversation(
             id = con_id,
+            user_id = current_user.id,
             title = title,
             created_at = datetime.now(),
             updated_at = datetime.now()
@@ -68,6 +118,12 @@ async def chat(
         raise HTTPException(
             status_code=404,
             detail="Conversation Not Found"
+        )
+        
+    if prev_conversation.user_id != current_user.id:
+        raise HTTPException(
+            status_code=403,
+            detail="Not authorized to access this conversation"
         )
     
     if request.model not in AVAILABLE_MODELS:
@@ -153,13 +209,165 @@ async def chat(
         
 @app.get("/conversations", response_model= list[ConversatioResponse])
 async def create_conversations(
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
 ):
     query = (
         select(Conversation)
         .order_by(Conversation.updated_at.desc())
-    )
+    ).where(Conversation.user_id == current_user.id)
     
     conversations = db.scalars(query).all()
     
+    
     return conversations
+
+
+@app.post("/register", response_model=UserResponse)
+def register_user(
+    user : UserCreate,
+    db : Session = Depends(get_db)
+) :
+    try: 
+        
+        if user.password != user.confirm_password:
+            raise HTTPException(
+                status_code=422,
+                detail= "password mismatch"
+            )
+            
+        query = select(User).where(User.email == user.email)
+        
+        res = db.scalars(query).first()
+        
+        if res:
+            raise HTTPException(
+                status_code= 409,
+                detail= "Conflict : User already exist"
+            )
+            
+            
+        hashed_password = security.hash_password(user.password)
+        
+        user_data = User(
+            id = str(uuid4()),
+            name = user.name,
+            email = user.email,
+            hashed_password = hashed_password,
+            created_at = datetime.now()
+        )
+        
+        db.add(user_data)
+        
+        db.commit()
+        
+        user_response = UserResponse(
+            id=user_data.id,
+            email=user_data.email,
+            name=user_data.name,
+            created_at=user_data.created_at
+        )
+        
+        return user_response
+    
+    except HTTPException :
+        raise 
+    
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail="Internal Server Error"
+        )
+        
+        
+@app.post("/login", response_model=TokenResponse)
+def login(
+    user : LoginRequest,
+    db : Session = Depends(get_db)
+) :
+    try: 
+        query = select(User).where(User.email == user.email)
+        
+        res = db.scalars(query).first()
+        
+        if not res:
+            raise HTTPException(
+                status_code=401,
+                detail="Invalid User"
+            )
+            
+        if not security.verify_password(res.hashed_password, user.password):
+            raise HTTPException(
+                status_code=401,
+                detail="Invalid Password"
+            )
+            
+        jwt_token = security.create_access_token(
+            data = {"sub" : str(res.id)}
+        )
+        
+        return TokenResponse(
+            access_token=jwt_token,
+            token_type= "bearer"
+        )
+            
+    except HTTPException:
+        raise
+    
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail="Internal Server Error"
+        )
+        
+
+@app.get("/me")
+def get_me(
+    user : User = Depends(get_current_user)
+) :
+    return {
+        "id" : user.id,
+        "name" : user.name,
+        "email" : user.email
+    }
+    
+
+@app.get("/conversations/{id}")
+async def get_con_msg(
+    conversation_id : str,
+    current_user : User = Depends(get_current_user),
+    db : Session = Depends(get_db)
+) :
+    try:
+        conversations = db.get(Conversation, conversation_id)
+        
+        if conversations is None:
+            raise HTTPException(
+                status_code=404,
+                detail="No Conversation found"
+            )
+        
+        if conversations.user_id != current_user.id:
+            raise HTTPException(
+                status_code=401,
+                detail= "Unauthorised"
+            )
+            
+        stmt = (
+            select(Message)
+            .where(Message.conversation_id == conversation_id)
+            .order_by(Message.created_at.asc())
+        )
+        
+        messaeges = db.scalars(stmt).all()
+        
+        return messaeges
+    
+    except HTTPException :
+        raise
+    
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail="Internal Server Error"
+        )
