@@ -279,7 +279,7 @@ The backend uses application-level model identifiers and maps them to the corres
 * [x] Persistent message storage
 * [x] Model switching
 * [x] Conversation context
-* [ ] Conversation history API
+* [x] Conversation history API
 * [ ] Previous conversation retrieval
 * [ ] Conversation title generation
 
