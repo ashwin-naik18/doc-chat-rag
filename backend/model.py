@@ -37,6 +37,12 @@ class Conversation(Base):
         "User",
         back_populates="conversation"
     )
+    
+    documetns = relationship(
+        "Document",
+        back_populates="conversation",
+        cascade="all, delete-orphan"
+    )
 
 
 class Message(Base):
@@ -122,5 +128,30 @@ class ConversationDetailResponse(BaseModel):
     created_at : datetime
     updated_at : datetime
     messges = list[MessageResponse]
+    
+    model_config = ConfigDict(from_attributes=True)
+    
+    
+class Document(Base):
+    __tabelname__ = "documents"
+    id = Column(String, primary_key=True)
+    user_id = Column(String, ForeignKey("users.id"))
+    conversation_id = Column(String, ForeignKey("conversation.id", ondelete="CASCADE"))
+    filename = Column(String)
+    filepath = Column(String)
+    content_type = Column(String)
+    created_at = Column(DateTime)
+    
+    conversation = relationship(
+        "Conversation",
+        back_populates="documents"
+    )
+    
+
+class DocumentResponse(BaseModel):
+    id : str
+    filename : str
+    content_type : str
+    created_at : datetime
     
     model_config = ConfigDict(from_attributes=True)

@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException, Depends, invv
+from fastapi import FastAPI, HTTPException, Depends
 from model_manager import get_llm
 from config import AVAILABLE_MODELS
 from model import *
@@ -11,6 +11,9 @@ from sqlalchemy import select
 from langchain_core.messages import HumanMessage, AIMessage
 import security
 from jwt import InvalidTokenError
+from fastapi import UploadFile, File
+from pathlib import Path
+from langchain_community.document_loaders import PyPDFLoader
 
 
 app = FastAPI(
@@ -274,6 +277,7 @@ def register_user(
         raise 
     
     except Exception as e:
+        db.rollback()
         raise HTTPException(
             status_code=500,
             detail="Internal Server Error"
@@ -315,6 +319,7 @@ def login(
         raise
     
     except Exception as e:
+        db.rollback()
         raise HTTPException(
             status_code=500,
             detail="Internal Server Error"
@@ -332,7 +337,7 @@ def get_me(
     }
     
 
-@app.get("/conversations/{id}")
+@app.get("/conversations/{conversation_id}", response_model=ConversationDetailResponse)
 async def get_con_msg(
     conversation_id : str,
     current_user : User = Depends(get_current_user),
@@ -349,8 +354,8 @@ async def get_con_msg(
         
         if conversations.user_id != current_user.id:
             raise HTTPException(
-                status_code=401,
-                detail= "Unauthorised"
+                status_code=403,
+                detail= "Unauthonticated"
             )
             
         stmt = (
@@ -361,7 +366,13 @@ async def get_con_msg(
         
         messaeges = db.scalars(stmt).all()
         
-        return messaeges
+        return ConversationDetailResponse(
+            id=conversations.id,
+            title=conversations.title,
+            created_at=conversations.created_at,
+            updated_at=conversations.updated_at,
+            messges = messaeges
+        )
     
     except HTTPException :
         raise
@@ -371,3 +382,65 @@ async def get_con_msg(
             status_code=500,
             detail="Internal Server Error"
         )
+        
+
+@app.post("/conversations/{conversation_id}/documents", response_model=DocumentResponse)
+async def upload_doc(
+    conversation_id : str,
+    file : UploadFile,
+    db : Session = Depends(get_db),
+    current_user : User = Depends(get_current_user)
+) :
+    if file.content_type != "application/pdf" :
+        raise HTTPException(
+            status_code=400,
+            detail="Only pdf File supported"
+        )
+        
+    conversation = db.get(Conversation, conversation_id)
+    
+    if conversation is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Conversation not found"
+        )
+        
+    if conversation.user_id != current_user.id:
+        raise HTTPException(
+            status_code=401,
+            detail="Unauthorised"
+        )
+        
+    document_id = str(uuid4())
+    
+    user_doc_dir = Path("data") / "documents" / str(current_user.id)
+    user_doc_dir.mkdir(parents=True, exist_ok=True)
+    
+    file_path = user_doc_dir / f"{document_id}.pdf"
+    
+    with open(file_path, "wb") as buffer:
+        content = await file.read()
+        buffer.write(content)
+        
+    document = Document(
+        id = document_id,
+        user_id = current_user.id,
+        conversation_id = conversation_id,
+        filename = file.filename,
+        filepath = str(file_path),
+        content_type = file.content_type,
+        created_at = datetime.now()
+    )
+    
+    db.add(document)
+    
+    db.commit()
+    
+    db.refresh(document)
+    
+    return DocumentResponse(
+        id=document_id,
+        filename=file.filename,
+        content_type=file.content_type,
+        created_at=document.created_at
+    )
