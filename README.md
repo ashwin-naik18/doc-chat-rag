@@ -280,12 +280,12 @@ The backend uses application-level model identifiers and maps them to the corres
 * [x] Model switching
 * [x] Conversation context
 * [x] Conversation history API
-* [ ] Previous conversation retrieval
-* [ ] Conversation title generation
+* [x] Previous conversation retrieval
+* [x] Conversation title generation
 
 ### RAG Pipeline
 
-* [ ] Document upload
+* [x] Document upload
 * [ ] Document loading
 * [ ] PDF processing
 * [ ] Text extraction
