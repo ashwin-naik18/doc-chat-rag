@@ -46,9 +46,9 @@ The planned RAG pipeline will allow users to upload documents, process their con
           |                                 |
           v                                 v
  +-------------------+             +-------------------+
- | Conversation      |             | LangChain         |
- | Management        |             |                   |
- +---------+---------+             | ChatOllama        |
+ |   Conversation    |             |     LangChain     |
+ |   Management      |             |                   |
+ +---------+---------+             |     ChatOllama    |
            |                       +---------+---------+
            v                                 |
  +-------------------+              +--------+--------+
