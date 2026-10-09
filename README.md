@@ -46,9 +46,9 @@ The planned RAG pipeline will allow users to upload documents, process their con
           |                                 |
           v                                 v
  +-------------------+             +-------------------+
- | Conversation      |             | LangChain         |
- | Management        |             |                   |
- +---------+---------+             | ChatOllama        |
+ |   Conversation    |             |     LangChain     |
+ |   Management      |             |                   |
+ +---------+---------+             |     ChatOllama    |
            |                       +---------+---------+
            v                                 |
  +-------------------+              +--------+--------+
@@ -280,17 +280,17 @@ The backend uses application-level model identifiers and maps them to the corres
 * [x] Model switching
 * [x] Conversation context
 * [x] Conversation history API
-* [ ] Previous conversation retrieval
-* [ ] Conversation title generation
+* [x] Previous conversation retrieval
+* [x] Conversation title generation
 
 ### RAG Pipeline
 
-* [ ] Document upload
-* [ ] Document loading
-* [ ] PDF processing
-* [ ] Text extraction
-* [ ] Text chunking
-* [ ] Embedding generation
+* [x] Document upload
+* [x] Document loading
+* [x] PDF processing
+* [x] Text extraction
+* [x] Text chunking
+* [x] Embedding generation
 * [ ] Vector database integration
 * [ ] Similarity search
 * [ ] Retriever implementation
