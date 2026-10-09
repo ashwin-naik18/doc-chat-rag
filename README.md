@@ -286,11 +286,11 @@ The backend uses application-level model identifiers and maps them to the corres
 ### RAG Pipeline
 
 * [x] Document upload
-* [ ] Document loading
-* [ ] PDF processing
-* [ ] Text extraction
-* [ ] Text chunking
-* [ ] Embedding generation
+* [x] Document loading
+* [x] PDF processing
+* [x] Text extraction
+* [x] Text chunking
+* [x] Embedding generation
 * [ ] Vector database integration
 * [ ] Similarity search
 * [ ] Retriever implementation
