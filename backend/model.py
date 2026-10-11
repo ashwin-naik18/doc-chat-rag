@@ -35,10 +35,10 @@ class Conversation(Base):
     
     users = relationship(
         "User",
-        back_populates="conversation"
+        back_populates="conversations"
     )
     
-    documetns = relationship(
+    documents = relationship(
         "Document",
         back_populates="conversation",
         cascade="all, delete-orphan"
@@ -84,7 +84,7 @@ class User(Base):
     
     conversations = relationship(
         "Conversation",
-        back_populates="user"
+        back_populates="users"
     )
     
 
@@ -127,13 +127,13 @@ class ConversationDetailResponse(BaseModel):
     title : str
     created_at : datetime
     updated_at : datetime
-    messges = list[MessageResponse]
+    messges : list[MessageResponse]
     
     model_config = ConfigDict(from_attributes=True)
     
     
 class Document(Base):
-    __tabelname__ = "documents"
+    __tablename__ = "documents"
     id = Column(String, primary_key=True)
     user_id = Column(String, ForeignKey("users.id"))
     conversation_id = Column(String, ForeignKey("conversation.id", ondelete="CASCADE"))

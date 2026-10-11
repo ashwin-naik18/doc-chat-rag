@@ -22,7 +22,6 @@ splitter = RecursiveCharacterTextSplitter(
 )
 
 chunk = splitter.split_documents(docs) 
-
 # print(len(chunk))
 
 embedding_model = HuggingFaceEmbeddings(model_name = "sentence-transformers/all-MiniLM-L6-v2")

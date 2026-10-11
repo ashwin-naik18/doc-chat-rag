@@ -25,5 +25,3 @@ def chunk_documents(documents):
     
     return chunks
 
-print("content : ")
-print(chunk_documents(load_pdf("C:\\Users\\ashwi\\OneDrive\\Desktop\\rag\\backend\\rag\\MODULE 2_DAA.pdf"))[3].page_content)

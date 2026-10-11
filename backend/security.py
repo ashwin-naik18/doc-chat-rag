@@ -1,9 +1,9 @@
 from pwdlib import PasswordHash
 import jwt
 from datetime import datetime, timezone, timedelta
-from fastapi.security import OAuth2PasswordBearer
+from fastapi.security import HTTPBearer
 
-oauth_scheme = OAuth2PasswordBearer(tokenUrl="login")
+oauth_scheme = HTTPBearer()
 
 SECRET_KEY = "this is a random secret key"
 ALGORITHM = "HS256"

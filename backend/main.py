@@ -13,7 +13,13 @@ import security
 from jwt import InvalidTokenError
 from fastapi import UploadFile, File
 from pathlib import Path
-from langchain_community.document_loaders import PyPDFLoader
+from rag_file.generator import generate_answer
+from rag_file.vectorstore import add_chunk
+from rag_file.loader import chunk_documents, load_pdf
+from fastapi.security import HTTPBearer
+from rag_file.router import router_query
+from rag_file.summeriser import summarize_document
+from starlette.concurrency import run_in_threadpool
 
 
 app = FastAPI(
@@ -26,9 +32,10 @@ Base.metadata.create_all(bind = engine)
 
 
 def get_current_user(
-    token : str = Depends(security.oauth_scheme),
+    credentials = Depends(security.oauth_scheme),
     db : Session = Depends(get_db)
 ) :
+    token = credentials.credentials
     try:
         payload = security.jwt.decode(
             token,
@@ -175,17 +182,75 @@ async def chat(
         
     try:
         
-        llm = get_llm(request.model)
         
-        response = await llm.ainvoke(
-            message_list
+        documents_stmt = select(Document).where(
+            Document.user_id == current_user.id,
+            Document.conversation_id == current_conversation_id
         )
+        conversation_documents = db.scalars(documents_stmt).all()
+
+        if not conversation_documents:
+            llm = get_llm(request.model)
+            response = await llm.ainvoke(message_list)
+            answer_text = response.content
+
+        else:
+            route = await run_in_threadpool(
+                router_query,
+                request.message,
+                message_list[:-1]
+            )
+
+            if route == "GENERAL":
+                llm = get_llm(request.model)
+                response = await llm.ainvoke(message_list)
+                answer_text = response.content
+
+            elif route == "DOCUMENT_QA":
+                answer_text = await run_in_threadpool(
+                    generate_answer,
+                    current_user.id,
+                    current_conversation_id,
+                    request.message,
+                    request.model
+                )
+
+            elif route == "DOCUMENT_SUMMARY":
+                query_lower = request.message.casefold()
+
+                if len(conversation_documents) == 1:
+                    selected_document = conversation_documents[0]
+                else:
+                    matches = [
+                        doc for doc in conversation_documents
+                        if doc.filename
+                        and doc.filename.casefold() in query_lower
+                    ]
+
+                    selected_document = matches[0] if len(matches) == 1 else None
+
+                if selected_document is None:
+                    filenames = "\n".join(
+                        f"- {doc.filename}" for doc in conversation_documents
+                    )
+                    answer_text = (
+                        "Which PDF would you like me to summarize? "
+                        "Please mention its filename:\n" + filenames
+                    )
+                else:
+                    answer_text = await run_in_threadpool(
+                        summarize_document,
+                        current_user.id,
+                        current_conversation_id,
+                        selected_document.id
+                    )
+
         
         ai_message = Message(
             id = str(uuid4()), 
             conversation_id = current_conversation_id,
             role = "Assistant", 
-            content = response.content,
+            content = answer_text,
             model = AVAILABLE_MODELS[request.model],
             created_at = datetime.now()
         )
@@ -198,7 +263,7 @@ async def chat(
         
         return ChatResponse(
             model = AVAILABLE_MODELS[request.model],
-            message= response.content,
+            message= answer_text,
             current_con_id= current_conversation_id
         )
     
@@ -278,6 +343,7 @@ def register_user(
     
     except Exception as e:
         db.rollback()
+        print(str(e))
         raise HTTPException(
             status_code=500,
             detail="Internal Server Error"
@@ -437,6 +503,17 @@ async def upload_doc(
     db.commit()
     
     db.refresh(document)
+    
+    page = load_pdf(file_path)
+    chunks = chunk_documents(page)
+    
+    status = add_chunk(current_user.id, conversation_id, document_id, chunks)
+    
+    if not status:
+        raise HTTPException(
+            status_code=409,
+            detail="Confilct"
+        )
     
     return DocumentResponse(
         id=document_id,
