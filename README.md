@@ -291,10 +291,10 @@ The backend uses application-level model identifiers and maps them to the corres
 * [x] Text extraction
 * [x] Text chunking
 * [x] Embedding generation
-* [ ] Vector database integration
-* [ ] Similarity search
-* [ ] Retriever implementation
-* [ ] RAG chain
+* [x] Vector database integration
+* [x] Similarity search
+* [x] Retriever implementation
+* [x] RAG chain
 * [ ] Source attribution
 
 ### Frontend
