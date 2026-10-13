@@ -14,18 +14,33 @@ from jwt import InvalidTokenError
 from fastapi import UploadFile, File
 from pathlib import Path
 from rag_file.generator import generate_answer
-from rag_file.vectorstore import add_chunk
+from rag_file.vectorstore import add_chunk, delete_document_chunks
 from rag_file.loader import chunk_documents, load_pdf
 from fastapi.security import HTTPBearer
 from rag_file.router import router_query
 from rag_file.summeriser import summarize_document
 from starlette.concurrency import run_in_threadpool
+import logging 
+from fastapi.middleware.cors import CORSMiddleware
+
+
+logger = logging.getLogger(__name__)
+
+
 
 
 app = FastAPI(
     title= "AshRAG", 
     description="Local rag application",
     version="1.0.0"
+)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["https://localhost:5173", "https://localhost:3000"],
+    allow_credentials=True,
+    allow_headers=["*"],
+    allow_methods=["*"]
 )
 
 Base.metadata.create_all(bind = engine)
@@ -208,12 +223,13 @@ async def chat(
 
             elif route == "DOCUMENT_QA":
                 answer_text = await run_in_threadpool(
-                    generate_answer,
-                    current_user.id,
-                    current_conversation_id,
-                    request.message,
-                    request.model
-                )
+                generate_answer,
+                current_user.id,
+                current_conversation_id,
+                request.message,
+                request.model,  
+                message_list[:-1]
+            )
 
             elif route == "DOCUMENT_SUMMARY":
                 query_lower = request.message.casefold()
@@ -242,7 +258,8 @@ async def chat(
                         summarize_document,
                         current_user.id,
                         current_conversation_id,
-                        selected_document.id
+                        selected_document.id,
+                        request.model
                     )
 
         
@@ -268,6 +285,8 @@ async def chat(
         )
     
     except Exception as e:
+        db.rollback()
+        logger.exception("chat request failed")
         
         raise HTTPException(
             status_code = 500,
@@ -304,7 +323,7 @@ def register_user(
                 detail= "password mismatch"
             )
             
-        query = select(User).where(User.email == user.email)
+        query = select(User).where(User.email == user.email.lower())
         
         res = db.scalars(query).first()
         
@@ -320,7 +339,7 @@ def register_user(
         user_data = User(
             id = str(uuid4()),
             name = user.name,
-            email = user.email,
+            email = user.email.lower(),
             hashed_password = hashed_password,
             created_at = datetime.now()
         )
@@ -450,75 +469,84 @@ async def get_con_msg(
         )
         
 
+MAX_UPLOAD_BYTES = 20 * 1024 * 1024  # 20 MB
+
+def process_pdf(file_path, user_id, conversation_id, document_id):
+    pages = load_pdf(file_path)
+    chunks = chunk_documents(pages)
+    add_chunk(user_id, conversation_id, document_id, chunks)        
+
+
 @app.post("/conversations/{conversation_id}/documents", response_model=DocumentResponse)
 async def upload_doc(
-    conversation_id : str,
-    file : UploadFile,
-    db : Session = Depends(get_db),
-    current_user : User = Depends(get_current_user)
-) :
-    if file.content_type != "application/pdf" :
-        raise HTTPException(
-            status_code=400,
-            detail="Only pdf File supported"
-        )
-        
+    conversation_id: str,
+    file: UploadFile,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    if file.content_type != "application/pdf":
+        raise HTTPException(status_code=400, detail="Only pdf File supported")
+
     conversation = db.get(Conversation, conversation_id)
-    
+
     if conversation is None:
-        raise HTTPException(
-            status_code=404,
-            detail="Conversation not found"
-        )
-        
+        raise HTTPException(status_code=404, detail="Conversation not found")
+
     if conversation.user_id != current_user.id:
-        raise HTTPException(
-            status_code=401,
-            detail="Unauthorised"
-        )
-        
+        raise HTTPException(status_code=403, detail="Not authorized to access this conversation")
+
+    # read at most MAX+1 bytes so huge files never fully load into memory
+    content = await file.read(MAX_UPLOAD_BYTES + 1)
+
+    if len(content) > MAX_UPLOAD_BYTES:
+        raise HTTPException(status_code=413, detail="File too large (max 20 MB)")
+
+    if not content.startswith(b"%PDF"):
+        raise HTTPException(status_code=400, detail="File is not a valid PDF")
+
     document_id = str(uuid4())
-    
+
     user_doc_dir = Path("data") / "documents" / str(current_user.id)
     user_doc_dir.mkdir(parents=True, exist_ok=True)
-    
+
     file_path = user_doc_dir / f"{document_id}.pdf"
-    
-    with open(file_path, "wb") as buffer:
-        content = await file.read()
-        buffer.write(content)
-        
-    document = Document(
-        id = document_id,
-        user_id = current_user.id,
-        conversation_id = conversation_id,
-        filename = file.filename,
-        filepath = str(file_path),
-        content_type = file.content_type,
-        created_at = datetime.now()
-    )
-    
-    db.add(document)
-    
-    db.commit()
-    
-    db.refresh(document)
-    
-    page = load_pdf(file_path)
-    chunks = chunk_documents(page)
-    
-    status = add_chunk(current_user.id, conversation_id, document_id, chunks)
-    
-    if not status:
-        raise HTTPException(
-            status_code=409,
-            detail="Confilct"
+    file_path.write_bytes(content)
+
+    try:
+        await run_in_threadpool(
+            process_pdf,
+            file_path,
+            current_user.id,
+            conversation_id,
+            document_id
         )
-    
+
+        document = Document(
+            id=document_id,
+            user_id=current_user.id,
+            conversation_id=conversation_id,
+            filename=file.filename,
+            filepath=str(file_path),
+            content_type=file.content_type,
+            created_at=datetime.now()
+        )
+
+        db.add(document)
+        db.commit()
+        db.refresh(document)
+
+    except Exception:
+        db.rollback()
+        file_path.unlink(missing_ok=True)
+        try:
+            delete_document_chunks(document_id)
+        except Exception:
+            pass
+        raise HTTPException(status_code=500, detail="Failed to process PDF")
+
     return DocumentResponse(
         id=document_id,
         filename=file.filename,
         content_type=file.content_type,
         created_at=document.created_at
     )
- 

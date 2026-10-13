@@ -1,9 +1,9 @@
 from .vectorstore import vector_db
 
-def retrive_chunk(user_id, conversation_id, query):
+def retrive_chunk(user_id, conversation_id, query, k=5):
     result = vector_db.similarity_search(
         query=query,
-        k=3,
+        k=k,
         filter={
             "$and" : [
                 {"conversation_id" : conversation_id},

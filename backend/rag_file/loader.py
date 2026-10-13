@@ -9,9 +9,6 @@ def load_pdf(file_path):
     
     document = loader.load()
     
-    print(len(document))
-    print(document[0].page_content[:50])
-    
     return document
 
 

@@ -1,10 +1,11 @@
 from langchain_ollama import ChatOllama
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_core.output_parsers import StrOutputParser
+import config
 
 
 router_llm = ChatOllama(
-    model="llama3.1:latest",
+    model= config.ROUTER_MODEL,
     temperature=0
 )
 

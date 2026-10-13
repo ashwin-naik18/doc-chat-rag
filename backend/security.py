@@ -22,7 +22,10 @@ def hash_password(password : str):
         
 
 def verify_password(stored_password : str, password : str):
-    return password_hash.verify(password, stored_password)
+    try:
+        return password_hash.verify(password, stored_password)
+    except Exception:
+        return False
 
 
 def create_access_token(

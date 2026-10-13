@@ -1,7 +1,10 @@
 from langchain_core.prompts import ChatPromptTemplate
-from .router import router_llm
 from langchain_core.output_parsers import StrOutputParser
+from model_manager import get_llm
 from .vectorstore import get_document_chunk
+
+MAX_BATCH_CHARS = 6000
+MAX_REDUCE_ROUNDS = 5
 
 
 chunk_summary_prompt = ChatPromptTemplate.from_messages([
@@ -35,29 +38,51 @@ final_summary_prompt = ChatPromptTemplate.from_messages([
     ("human", "{summaries}")
 ])
 
-chain1 = chunk_summary_prompt | router_llm | StrOutputParser()
-chain2 = final_summary_prompt | router_llm | StrOutputParser()
 
-def summarize_document(user_id, conversation_id, document_id):
+def _batch_texts(texts, max_chars=MAX_BATCH_CHARS):
+    batches, current, size = [], [], 0
+
+    for t in texts:
+        if current and size + len(t) > max_chars:
+            batches.append("\n\n".join(current))
+            current, size = [], 0
+        current.append(t)
+        size += len(t)
+
+    if current:
+        batches.append("\n\n".join(current))
+
+    return batches
+
+
+def summarize_document(user_id, conversation_id, document_id, model_name):
     chunks = get_document_chunk(user_id, conversation_id, document_id)
-    
-    partial_summary = ""
-    
-    for chunk_text, metadata in chunks:
-        r = chain1.invoke(
-            {
-                "chunk_text" : chunk_text
-            }
-        )
-        
-        partial_summary += f"\n{r}"
-        
-    
-    
-    final_result = chain2.invoke(
-        {
-            "summaries" : partial_summary
-        }
-    )
-    
-    return final_result
+
+    if not chunks:
+        return "I couldn't find any content for this document."
+
+    llm = get_llm(model_name)
+    section_chain = chunk_summary_prompt | llm | StrOutputParser()
+    final_chain = final_summary_prompt | llm | StrOutputParser()
+
+    texts = [text for text, _ in chunks]
+
+    summaries = [
+        section_chain.invoke({"chunk_text": batch})
+        for batch in _batch_texts(texts)
+    ]
+
+
+    rounds = 0
+    while (
+        len("\n\n".join(summaries)) > MAX_BATCH_CHARS
+        and len(summaries) > 1
+        and rounds < MAX_REDUCE_ROUNDS
+    ):
+        summaries = [
+            section_chain.invoke({"chunk_text": batch})
+            for batch in _batch_texts(summaries)
+        ]
+        rounds += 1
+
+    return final_chain.invoke({"summaries": "\n\n".join(summaries)})

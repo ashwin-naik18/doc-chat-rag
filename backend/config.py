@@ -3,3 +3,4 @@ AVAILABLE_MODELS = {
     "qwen": "qwen2.5-coder:14b",
 }
 
+ROUTER_MODEL = "llama3.1:latest"

@@ -11,5 +11,6 @@ def get_llm(model_name : str):
     
     return ChatOllama(
         model=key,
-        temperature=0
+        temperature=0,
+        num_ctx=8192
     )

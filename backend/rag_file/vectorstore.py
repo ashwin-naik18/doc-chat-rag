@@ -34,6 +34,8 @@ def add_chunk(user_id, conversation_id, document_id, chunks):
     
     return True
 
+def delete_document_chunks(document_id):
+    vector_db.delete(where={"document_id": document_id})
 
 def get_conversation_chunk(user_id, conversation_id):
     result = vector_db.get(
@@ -58,6 +60,7 @@ def get_conversation_chunk(user_id, conversation_id):
         )
     )
     
+    return chunk_with_metadata
 
 def get_document_chunk(user_id, conversation_id, document_id):
     result = vector_db.get(
