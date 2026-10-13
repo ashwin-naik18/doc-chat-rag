@@ -9,4 +9,4 @@ chunk = chunk_documents(pdf)
 status = add_chunk(1, 2, 3, chunk)
 
 print(status)
-print(chunk[2])
+print(chunk[3])
