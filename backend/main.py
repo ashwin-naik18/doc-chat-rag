@@ -21,6 +21,7 @@ from rag_file.router import router_query
 from rag_file.summeriser import summarize_document
 from starlette.concurrency import run_in_threadpool
 import logging 
+from rag_file.vectorstore import add_chunk, delete_document_chunks, delete_conversation_chunks
 from fastapi.middleware.cors import CORSMiddleware
 
 
@@ -37,7 +38,7 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["https://localhost:5173", "https://localhost:3000"],
+    allow_origins=["http://localhost:5173", "http://localhost:3000"],
     allow_credentials=True,
     allow_headers=["*"],
     allow_methods=["*"]
@@ -113,6 +114,13 @@ async def chat(
     db : Session = Depends(get_db)
     ):
     
+    if request.model not in AVAILABLE_MODELS:
+        raise HTTPException(
+            status_code= 400,
+            detail="Invalid Model Selected.."
+        )
+        
+        
     current_conversation_id  = request.conversation_id
     
     if request.conversation_id is None:
@@ -151,12 +159,10 @@ async def chat(
             detail="Not authorized to access this conversation"
         )
     
-    if request.model not in AVAILABLE_MODELS:
-        raise HTTPException(
-            status_code= 400,
-            detail="Invalid Model Selected.."
-        )
         
+    if prev_conversation.title == "New Chat":
+        prev_conversation.title = request.message.strip()[:40] or "New Chat"
+    
         
     message = model.Message(
         id = str(uuid4()),
@@ -290,7 +296,7 @@ async def chat(
         
         raise HTTPException(
             status_code = 500,
-            detail = f"Internal Server Error : {str(e)}"
+            detail = f"Internal Server Error"
         )
         
         
@@ -375,7 +381,7 @@ def login(
     db : Session = Depends(get_db)
 ) :
     try: 
-        query = select(User).where(User.email == user.email)
+        query = select(User).where(User.email == user.email.lower())
         
         res = db.scalars(query).first()
         
@@ -469,7 +475,7 @@ async def get_con_msg(
         )
         
 
-MAX_UPLOAD_BYTES = 20 * 1024 * 1024  # 20 MB
+MAX_UPLOAD_BYTES = 20 * 1024 * 1024  
 
 def process_pdf(file_path, user_id, conversation_id, document_id):
     pages = load_pdf(file_path)
@@ -495,7 +501,7 @@ async def upload_doc(
     if conversation.user_id != current_user.id:
         raise HTTPException(status_code=403, detail="Not authorized to access this conversation")
 
-    # read at most MAX+1 bytes so huge files never fully load into memory
+
     content = await file.read(MAX_UPLOAD_BYTES + 1)
 
     if len(content) > MAX_UPLOAD_BYTES:
@@ -550,3 +556,104 @@ async def upload_doc(
         content_type=file.content_type,
         created_at=document.created_at
     )
+    
+
+@app.get("/conversations/{conversation_id}/documents", response_model=list[DocumentResponse])
+def list_documents(
+    conversation_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    conversation = db.get(Conversation, conversation_id)
+
+    if conversation is None:
+        raise HTTPException(status_code=404, detail="Conversation not found")
+
+    if conversation.user_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Not authorized to access this conversation")
+
+    stmt = (
+        select(Document)
+        .where(Document.conversation_id == conversation_id)
+        .order_by(Document.created_at.asc())
+    )
+
+    return db.scalars(stmt).all()
+
+@app.post("/conversations", response_model=ConversatioResponse, status_code=201)
+def new_conversation(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    now = datetime.now()
+
+    conversation = Conversation(
+        id=str(uuid4()),
+        user_id=current_user.id,
+        title="New Chat",
+        created_at=now,
+        updated_at=now
+    )
+
+    db.add(conversation)
+    db.commit()
+    db.refresh(conversation)
+
+    return conversation
+
+
+@app.delete("/conversations/{conversation_id}/documents/{document_id}", status_code=204)
+def delete_document(
+    conversation_id: str,
+    document_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    document = db.get(Document, document_id)
+
+    if (
+        document is None
+        or document.conversation_id != conversation_id
+        or document.user_id != current_user.id
+    ):
+        raise HTTPException(status_code=404, detail="Document not found")
+
+    file_path = Path(document.filepath)
+
+    db.delete(document)
+    db.commit()
+
+    file_path.unlink(missing_ok=True)
+
+    try:
+        delete_document_chunks(document_id)
+    except Exception:
+        logger.exception("Failed to delete vectors for document %s", document_id)
+        
+        
+@app.delete("/conversations/{conversation_id}", status_code=204)
+def delete_conversation(
+    conversation_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    conversation = db.get(Conversation, conversation_id)
+
+    if conversation is None:
+        raise HTTPException(status_code=404, detail="Conversation not found")
+
+    if conversation.user_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Not authorized to access this conversation")
+
+    file_paths = [Path(d.filepath) for d in conversation.documents]
+
+    db.delete(conversation)  
+    db.commit()
+
+    for p in file_paths:
+        p.unlink(missing_ok=True)
+
+    try:
+        delete_conversation_chunks(conversation_id)
+    except Exception:
+        logger.exception("Failed to delete vectors for conversation %s", conversation_id)

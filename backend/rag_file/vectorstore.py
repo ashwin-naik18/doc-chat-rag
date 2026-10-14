@@ -86,3 +86,8 @@ def get_document_chunk(user_id, conversation_id, document_id):
     )
     
     return chunk_with_metadata
+
+
+
+def delete_conversation_chunks(conversation_id):
+    vector_db.delete(where={"conversation_id": conversation_id})
