@@ -1,0 +1,14 @@
+# secrets and local data
+.env
+backend/ashrag.db
+backend/data/
+vectorstore/
+
+# python
+__pycache__/
+*.pyc
+venv/
+.venv/
+
+# node
+node_modules/

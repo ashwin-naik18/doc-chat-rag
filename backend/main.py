@@ -16,7 +16,6 @@ from pathlib import Path
 from rag_file.generator import generate_answer
 from rag_file.vectorstore import add_chunk, delete_document_chunks
 from rag_file.loader import chunk_documents, load_pdf
-from fastapi.security import HTTPBearer
 from rag_file.router import router_query
 from rag_file.summeriser import summarize_document
 from starlette.concurrency import run_in_threadpool
