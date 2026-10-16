@@ -299,7 +299,7 @@ The backend uses application-level model identifiers and maps them to the corres
 
 ### Frontend
 
-* [ ] Chat interface
+* [x] Chat interface
 * [ ] Model selector
 * [ ] Conversation sidebar
 * [ ] Previous conversation access
