@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { apiFetch } from "../api";
+import AuthLayout from "../components/AuthLayout";
 
 export default function Register() {
   const navigate = useNavigate();
@@ -38,25 +39,79 @@ export default function Register() {
   };
 
   return (
-    <div style={{ maxWidth: 360, margin: "80px auto", display: "grid", gap: 12 }}>
-      <h2>Create account</h2>
+    <AuthLayout
+      title="Create your account"
+      subtitle="It takes a few seconds. Your chats and PDFs stay on this machine."
+      footer={
+        <>
+          Already registered? <Link to="/login">Log in</Link>
+        </>
+      }
+    >
+      <form className="auth-form" onSubmit={handleSubmit}>
+        <div className="field">
+          <label htmlFor="name">Name</label>
+          <input
+            id="name"
+            name="name"
+            autoComplete="name"
+            placeholder="Your name"
+            value={form.name}
+            onChange={handleChange}
+            required
+            autoFocus
+          />
+        </div>
 
-      <form onSubmit={handleSubmit} style={{ display: "grid", gap: 12 }}>
-        <input name="name" placeholder="Name" value={form.name} onChange={handleChange} required />
-        <input name="email" type="email" placeholder="Email" value={form.email} onChange={handleChange} required />
-        <input name="password" type="password" placeholder="Password" value={form.password} onChange={handleChange} required />
-        <input name="confirm_password" type="password" placeholder="Confirm password" value={form.confirm_password} onChange={handleChange} required />
+        <div className="field">
+          <label htmlFor="email">Email</label>
+          <input
+            id="email"
+            name="email"
+            type="email"
+            autoComplete="email"
+            placeholder="you@example.com"
+            value={form.email}
+            onChange={handleChange}
+            required
+          />
+        </div>
 
-        {error && <p style={{ color: "tomato", margin: 0 }}>{error}</p>}
+        <div className="field">
+          <label htmlFor="password">Password</label>
+          <input
+            id="password"
+            name="password"
+            type="password"
+            autoComplete="new-password"
+            placeholder="At least 8 characters"
+            value={form.password}
+            onChange={handleChange}
+            minLength={8}
+            required
+          />
+        </div>
 
-        <button type="submit" disabled={loading}>
-          {loading ? "Creating..." : "Register"}
+        <div className="field">
+          <label htmlFor="confirm_password">Confirm password</label>
+          <input
+            id="confirm_password"
+            name="confirm_password"
+            type="password"
+            autoComplete="new-password"
+            placeholder="Type it again"
+            value={form.confirm_password}
+            onChange={handleChange}
+            required
+          />
+        </div>
+
+        {error && <div className="form-error" role="alert">{error}</div>}
+
+        <button type="submit" className="btn btn-primary" disabled={loading}>
+          {loading ? "Creating account…" : "Create account"}
         </button>
       </form>
-
-      <p>
-        Already have an account? <Link to="/login">Log in</Link>
-      </p>
-    </div>
+    </AuthLayout>
   );
 }

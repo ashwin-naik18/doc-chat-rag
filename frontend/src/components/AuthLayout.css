@@ -1,0 +1,145 @@
+.auth {
+  min-height: 100%;
+  display: grid;
+  grid-template-columns: minmax(320px, 5fr) 6fr;
+}
+
+/* ---------- brand panel ---------- */
+.auth-brand {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 40px 48px;
+  background: var(--paper-sunken);
+  border-right: 1px solid var(--line);
+}
+
+.auth-logo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.auth-logo-mark {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  background: var(--accent);
+  color: #fffaf3;
+  border-radius: 7px;
+  font-family: var(--font-serif);
+  font-weight: 600;
+  font-size: 17px;
+}
+
+.auth-logo-name {
+  font-family: var(--font-serif);
+  font-size: 20px;
+  font-weight: 500;
+}
+
+.auth-pitch {
+  max-width: 380px;
+}
+
+.auth-pitch h2 {
+  margin: 14px 0 16px;
+  font-size: clamp(30px, 3.4vw, 42px);
+  line-height: 1.1;
+}
+
+.auth-pitch-body {
+  color: var(--ink-soft);
+  line-height: 1.65;
+}
+
+.auth-brand-foot {
+  color: var(--ink-faint);
+}
+
+/* ---------- form side ---------- */
+.auth-main {
+  display: grid;
+  place-items: center;
+  padding: 40px 24px;
+}
+
+.auth-card {
+  width: 100%;
+  max-width: 380px;
+}
+
+.auth-header {
+  margin-bottom: 28px;
+}
+
+.auth-header h1 {
+  font-size: 30px;
+}
+
+.auth-header p {
+  margin-top: 6px;
+  color: var(--ink-soft);
+}
+
+.auth-footer {
+  margin-top: 22px;
+  color: var(--ink-soft);
+  font-size: 14px;
+}
+
+/* ---------- form pieces used by Login and Register ---------- */
+.auth-form {
+  display: grid;
+  gap: 16px;
+}
+
+.field {
+  display: grid;
+  gap: 6px;
+}
+
+.field label {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ink-soft);
+}
+
+.auth-form .btn {
+  margin-top: 4px;
+  padding: 12px 16px;
+}
+
+.form-error {
+  padding: 10px 12px;
+  background: var(--danger-tint);
+  border: 1px solid color-mix(in srgb, var(--danger) 30%, transparent);
+  border-radius: var(--radius);
+  color: var(--danger);
+  font-size: 14px;
+}
+
+/* ---------- small screens ---------- */
+@media (max-width: 820px) {
+  .auth {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto 1fr;
+  }
+
+  .auth-brand {
+    padding: 20px 24px;
+    border-right: 0;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .auth-pitch,
+  .auth-brand-foot {
+    display: none;
+  }
+
+  .auth-main {
+    align-items: start;
+    padding-top: 36px;
+  }
+}

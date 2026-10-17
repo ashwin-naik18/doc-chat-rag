@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { apiFetch, setToken } from "../api";
+import AuthLayout from "../components/AuthLayout";
 
 export default function Login() {
   const navigate = useNavigate();
@@ -29,23 +30,51 @@ export default function Login() {
   };
 
   return (
-    <div style={{ maxWidth: 360, margin: "80px auto", display: "grid", gap: 12 }}>
-      <h2>Log in</h2>
+    <AuthLayout
+      title="Welcome back"
+      subtitle="Log in to pick up your conversations."
+      footer={
+        <>
+          New here? <Link to="/register">Create an account</Link>
+        </>
+      }
+    >
+      <form className="auth-form" onSubmit={handleSubmit}>
+        <div className="field">
+          <label htmlFor="email">Email</label>
+          <input
+            id="email"
+            name="email"
+            type="email"
+            autoComplete="email"
+            placeholder="you@example.com"
+            value={form.email}
+            onChange={handleChange}
+            required
+            autoFocus
+          />
+        </div>
 
-      <form onSubmit={handleSubmit} style={{ display: "grid", gap: 12 }}>
-        <input name="email" type="email" placeholder="Email" value={form.email} onChange={handleChange} required />
-        <input name="password" type="password" placeholder="Password" value={form.password} onChange={handleChange} required />
+        <div className="field">
+          <label htmlFor="password">Password</label>
+          <input
+            id="password"
+            name="password"
+            type="password"
+            autoComplete="current-password"
+            placeholder="Your password"
+            value={form.password}
+            onChange={handleChange}
+            required
+          />
+        </div>
 
-        {error && <p style={{ color: "tomato", margin: 0 }}>{error}</p>}
+        {error && <div className="form-error" role="alert">{error}</div>}
 
-        <button type="submit" disabled={loading}>
-          {loading ? "Logging in..." : "Log in"}
+        <button type="submit" className="btn btn-primary" disabled={loading}>
+          {loading ? "Logging in…" : "Log in"}
         </button>
       </form>
-
-      <p>
-        No account? <Link to="/register">Register</Link>
-      </p>
-    </div>
+    </AuthLayout>
   );
 }

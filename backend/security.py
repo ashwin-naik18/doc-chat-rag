@@ -5,7 +5,7 @@ from fastapi.security import HTTPBearer
 
 oauth_scheme = HTTPBearer()
 
-SECRET_KEY = "this is a random secret key"
+SECRET_KEY = SECRET_KEY
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 200
 

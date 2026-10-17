@@ -1,0 +1,123 @@
+.composer-wrap {
+  flex-shrink: 0;
+  width: 100%;
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 8px 24px 14px;
+}
+
+.composer {
+  background: var(--paper-raised);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-lg);
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.composer:focus-within {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-tint);
+}
+
+/* the textarea itself stays borderless; the card draws the border */
+.composer textarea {
+  display: block;
+  width: 100%;
+  max-height: 200px;
+  padding: 14px 16px 6px;
+  background: transparent;
+  border: 0;
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  box-shadow: none;
+  resize: none;
+  line-height: 1.5;
+}
+
+.composer textarea:focus {
+  box-shadow: none;
+}
+
+.composer-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 8px 8px;
+}
+
+.composer-left {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.model-select {
+  width: auto;
+  padding: 5px 8px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  color: var(--ink-soft);
+  cursor: pointer;
+}
+
+.model-select:hover:not(:disabled) {
+  background: var(--paper-sunken);
+}
+
+.model-select:focus {
+  box-shadow: none;
+  border-color: var(--line-strong);
+}
+
+.send-btn {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  background: var(--accent);
+  border: 0;
+  border-radius: 50%;
+  color: #fffaf3;
+  transition: background 0.15s, opacity 0.15s;
+}
+
+.send-btn:hover:not(:disabled) {
+  background: var(--accent-hover);
+}
+
+.send-btn:disabled {
+  background: var(--line-strong);
+  opacity: 1;
+}
+
+.composer-hint {
+  margin-top: 8px;
+  text-align: center;
+  color: var(--ink-faint);
+  font-size: 11px;
+}
+
+.spin {
+  animation: spin 0.9s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+@media (max-width: 820px) {
+  .composer-wrap {
+    padding: 8px 12px 12px;
+  }
+
+  .composer-hint {
+    display: none;
+  }
+}
+
+/* on touch screens, 16px stops iOS from zooming into the field */
+@media (hover: none) {
+  .composer textarea {
+    font-size: 16px;
+  }
+}

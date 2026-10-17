@@ -1,0 +1,44 @@
+.dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(31, 27, 22, 0.45);
+  animation: fade 0.15s ease-out both;
+}
+
+.dialog {
+  width: 100%;
+  max-width: 400px;
+  padding: 24px;
+  background: var(--paper-raised);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-pop);
+  animation: rise 0.18s ease-out both;
+}
+
+.dialog h2 {
+  font-size: 20px;
+  margin-bottom: 8px;
+}
+
+.dialog p {
+  color: var(--ink-soft);
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+
+.dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 22px;
+}
+
+@keyframes fade {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
